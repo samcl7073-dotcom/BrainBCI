@@ -1,0 +1,2 @@
+cmu-graphics>=1.1.47
+pylsl>=1.18.1
