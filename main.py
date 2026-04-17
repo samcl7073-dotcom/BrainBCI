@@ -1,25 +1,47 @@
-import os
-
-os.environ.setdefault("CI", "1")
 from cmu_graphics import *
 from pylsl import StreamInlet, resolve_streams
+#resolve_streams: scans local network (WiFi or Bluetooth) for active data streams. 
+#Returns a list of every device found
+
+#StreamInlet:creates the connection that allows script to read data
 
 bandOrder = ("theta", "alpha", "betaL", "betaH", "gamma")
+#brainwave categories
+
+#configuration constants
 initialResolveWait = 12.0
+#number of seconds the script will wait at appstart to find a brainwave stream. 
+#EEG devices often have a bit of lag when connecting
 retryResolveWait = 6.0
+# If the initial connection fails, the script becomes slightly more aggressive.
+# When it tries again later, it only waits 6 seconds for a response to keep the app 
+# from freezing for too long.
 connectRetryInterval = 40
+# measured in frames (steps). 
+# Since the app runs at 60 frames per second, 
+# this tells the script to try reconnecting roughly every 0.66 seconds if the connection is lost.
+
 bandSet = frozenset(bandOrder)
+#converts list of brainwaves (theta, alpha, etc.) into a unchangable set
 
 
 def bandKey(labelText):
+    # finds bandKey from labelText from stream
+    # e.g. "EEG/Alpha": extracts just the word "alpha"
+
     stripped = (labelText or "").strip()
     if "/" not in stripped:
         return None
+    #a stream might send labels formatted like this:EEG/Alpha
     tail = stripped.split("/", 1)[1].strip()
-    return next(
-        (name for name in bandOrder if name.lower() == tail.lower()),
-        tail,
-    )
+    # tail=the part after the first slash. 
+    # If it finds EEG/Alpha, it splits the string to grab Alpha. 
+    # If there is no slash, the split("/", 1)[1] command on the next line would crash 
+    # the program because there would be no "second part" to grab.
+    for name in bandOrder:
+        if name.lower() == tail.lower():
+            return name  # Found a match, exit the function early   
+    return tail
 
 
 def labelsFromInfo(streamInfo):
@@ -38,6 +60,8 @@ def labelsFromInfo(streamInfo):
 
 
 def openBandedInlet(streamInfo, waitSeconds):
+    #The Handshake
+    #checks if the stream found on the network is actually a brainwave stream
     try:
         inlet = StreamInlet(
             streamInfo, max_buflen=360, max_chunklen=0, recover=True
@@ -52,6 +76,7 @@ def openBandedInlet(streamInfo, waitSeconds):
 
 
 def connect(app, ts=None):
+    #
     waitSeconds = float(initialResolveWait if ts is None else ts)
     resolved = resolve_streams(wait_time=waitSeconds)
     streamsById = {
@@ -71,7 +96,9 @@ def connect(app, ts=None):
 
 
 def onAppStart(app):
+
     app.stepsPerSecond = 60
+    #must define app.inlet as None onAppStart
     app.inlet = None
     app.labels = []
     app.order = list(bandOrder)
@@ -89,6 +116,7 @@ def applySample(app, sample):
         if bandName in bandSet:
             sumByBand[bandName] += float(value)
             countByBand[bandName] += 1
+    #calculates average for each band
     app.avg = {
         band: sumByBand[band] / countByBand[band]
         if countByBand[band]
@@ -107,6 +135,7 @@ def onStep(app):
         return
     while True:
         sample = app.inlet.pull_sample(timeout=0.0)[0]
+        #grabs the latest bit of electricity data from the buffer.
         if sample is None:
             break
         applySample(app, sample)
