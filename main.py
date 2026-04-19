@@ -1,5 +1,10 @@
 from cmu_graphics import *
 from pylsl import StreamInlet, resolve_streams
+#start of ai generated exempt code (from line 3 to line 130)
+
+#def band key, def labelsFromInfo,def OpenBandInlet,def connect,def applySample, def isIdle are all exmept code
+#The functions mentiond in exempt code are written by AI in order to get the EEG stream working
+
 #resolve_streams: scans local network (WiFi or Bluetooth) for active data streams. 
 #Returns a list of every device found
 
@@ -42,7 +47,6 @@ def bandKey(labelText):
         if name.lower() == tail.lower():
             return name  # Found a match, exit the function early   
     return tail
-
 
 def labelsFromInfo(streamInfo):
     channelsNode = streamInfo.desc().child("channels")
@@ -95,17 +99,6 @@ def connect(app, ts=None):
         return
 
 
-def onAppStart(app):
-
-    app.stepsPerSecond = 60
-    #must define app.inlet as None onAppStart
-    app.inlet = None
-    app.labels = []
-    app.order = list(bandOrder)
-    app.avg = {}
-    app.stepCount = 0
-
-
 def applySample(app, sample):
     if len(sample) != len(app.labels):
         return
@@ -123,37 +116,165 @@ def applySample(app, sample):
         else 0.0
         for band in bandOrder
     }
+    app.bandsWithSample = frozenset(
+    band for band in bandOrder if countByBand[band] > 0
+)
+def isIdle(app):
+    bands = app.bandsWithSample 
+    if not bands:
+        return True
+    return all(
+        app.avg[band] <= idleThresholdUv2[band]
+        for band in bands
+    )
+#end of Ai generated code
 
+
+# Midpoint cutoffs (µV²): mean ≤ threshold → Idle; above → not Idle.
+# I had used data from my previous attention study and got a 60% accuracy 
+# rate from using these thresholds to distinguish between idle and non-idle states
+idleThresholdUv2 = {
+    "theta": 4.521,
+    "alpha": 1.354,
+    "betaL": 0.877,
+    "betaH": 0.542,
+    "gamma": 0.409,
+}
+
+
+def onAppStart(app):
+    app.stepsPerSecond = 60
+    app.searchForStream = False
+
+    #app variables in relation to EEG Stream
+    app.inlet = None
+    app.labels = []
+    app.order = list(bandOrder)
+    app.avg = {}
+    app.stepCount = 0
+    app.bandsWithSample = frozenset()
+
+    #level app variables
+    app.LevelOneCleared = False
+
+    #app variables for UI
+    app.labelSpace=70
+
+    #app variables used for ball
+    app.cx=app.width/2
+    app.cy=app.height/2
+    app.r=20
+
+    #app variables used for squares
+    app.squareSpeed = 3
+    app.numberOfSquares = 5
+    app.squaresize=40
+    
+    #square spacing logic
+    topPadding = 50 
+    bottomPadding = 50 
+    startY = topPadding + (app.squaresize / 2)
+    endY = app.height - app.labelSpace - bottomPadding - (app.squaresize / 2)
+    totalRange = endY - startY
+    gaps = app.numberOfSquares - 1
+    
+    
+    app.squares = []
+    for i in range(app.numberOfSquares):
+        direction = 1 if (i % 2 == 0) else -1
+        
+        app.squares.append({
+            'index': i,
+            'dir': direction,
+            'cx': (app.width / (app.numberOfSquares + 1)) * (i + 1),
+            'cy': startY + (totalRange / gaps) * i,
+            'size': app.squaresize
+        })
+
+    #app variables for square animation
+    app.squareSpeed = 2 
+    app.squareDirection = 1
+
+    #app variables used for alternative keyboard control
+    app.fPressed = False
+def onKeyPress(app,key):
+    if key == 's':
+        app.searchForStream = not app.searchForStream
+
+def onKeyHold(app,keys):
+    if 'f' in keys:
+        app.fPressed = True
+
+def onKeyRelease(app,key):
+    if key == 'f':
+        app.fPressed = False
 
 def onStep(app):
+    #square animation logic    
+    for square in app.squares:
+        square['cx'] += app.squareSpeed * square['dir']
+        if square['cx'] - square['size']/2 > app.width:
+            square['cx'] = -square['size']/2
+        elif square['cx'] + square['size']/2 < 0:
+            square['cx'] = app.width + square['size']/2
+
+    #square and circle collision logic
+    for square in app.squares[:]:
+        squareLeft = square['cx'] - square['size']/2
+        squareRight = square['cx'] + square['size']/2
+        squareTop = square['cy'] - square['size']/2
+        squareBottom = square['cy'] + square['size']/2
+
+        if (app.cx + app.r > squareLeft and app.cx - app.r < squareRight and
+            app.cy + app.r > squareTop and app.cy - app.r < squareBottom):
+            app.squares.remove(square)
+    if len(app.squares) == 0:
+        app.LevelOneCleared = True
+
+    #the following is ai generated exempt code used to detect EEG stream
     app.stepCount += 1
-    if not app.inlet and (
+    if app.searchForStream and not app.inlet and (
         app.stepCount == 1 or app.stepCount % connectRetryInterval == 0
     ):
         connect(app, retryResolveWait if app.stepCount > 1 else None)
-    if not app.inlet:
-        return
-    while True:
-        sample = app.inlet.pull_sample(timeout=0.0)[0]
-        #grabs the latest bit of electricity data from the buffer.
-        if sample is None:
-            break
-        applySample(app, sample)
+    if app.inlet is not None:
+        while True:
+            sample = app.inlet.pull_sample(timeout=0.0)[0]
+            if sample is None: break
+            applySample(app, sample)
+     #end of exempt code
+
+
+    if app.inlet is not None:
+        idle = isIdle(app)
+    else:
+        idle = not app.fPressed
+
+    if idle: 
+        if app.cy + app.r < (app.height - app.labelSpace):
+            app.cy += 5
+        else:
+            app.cy = app.height - app.labelSpace - app.r
+    else:
+        if app.cy - app.r > 0:
+            app.cy -= 5
+        else:
+            app.cy = app.r
 
 
 def redrawAll(app):
-    if not app.inlet:
-        return
-    labelX, labelY, lineSpacing = 12, 10, 22
-    for rowIndex, bandName in enumerate(app.order):
-        drawLabel(
-            f"{bandName}  {app.avg.get(bandName, '-')}",
-            labelX,
-            labelY + rowIndex * lineSpacing,
-            size=16,
-            fill="black",
-            align="left",
-        )
+    drawLabel("press s to switch to EEG stream",app.width-100,app.height-20,size=12,font='arial')
+    drawLabel("press f to move ball up",app.width-100,app.height-40,size=12,font='arial')
+    if app.LevelOneCleared == True:
+        drawLabel("Level One Cleared!",app.width/2,app.height/2,size=30,font='arial', fill='pink')
+
+    for square in app.squares:
+        left = square['cx'] - square['size']/2
+        top = square['cy'] - square['size']/2
+        drawRect(left, top, square['size'], square['size'], border='black', fill=None)
+
+    drawCircle(app.cx,app.cy,app.r,fill='cyan')
+    
 
 
-runApp(400, 200)
+runApp(500, 500)
