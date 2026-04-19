@@ -146,13 +146,14 @@ def onAppStart(app):
     app.stepsPerSecond = 60
     app.searchForStream = False
 
-    #app variables in relation to EEG Stream
+    #exempt code: app variables in relation to EEG Stream
     app.inlet = None
     app.labels = []
     app.order = list(bandOrder)
     app.avg = {}
     app.stepCount = 0
     app.bandsWithSample = frozenset()
+    #end of exempt code
 
     #level app variables
     app.LevelOneCleared = False
@@ -160,12 +161,12 @@ def onAppStart(app):
     #app variables for UI
     app.labelSpace=70
 
-    #app variables used for ball
+    #app variables for ball
     app.cx=app.width/2
     app.cy=app.height/2
     app.r=20
 
-    #app variables used for squares
+    #app variables for squares
     app.squareSpeed = 3
     app.numberOfSquares = 5
     app.squaresize=40
@@ -177,12 +178,9 @@ def onAppStart(app):
     endY = app.height - app.labelSpace - bottomPadding - (app.squaresize / 2)
     totalRange = endY - startY
     gaps = app.numberOfSquares - 1
-    
-    
     app.squares = []
     for i in range(app.numberOfSquares):
         direction = 1 if (i % 2 == 0) else -1
-        
         app.squares.append({
             'index': i,
             'dir': direction,
@@ -197,6 +195,8 @@ def onAppStart(app):
 
     #app variables used for alternative keyboard control
     app.fPressed = False
+
+
 def onKeyPress(app,key):
     if key == 's':
         app.searchForStream = not app.searchForStream
@@ -210,6 +210,24 @@ def onKeyRelease(app,key):
         app.fPressed = False
 
 def onStep(app):
+    # --- EEG / Stream Logic (Exempt Code) ---
+    app.stepCount += 1
+    if app.searchForStream and not app.inlet and (
+        app.stepCount == 1 or app.stepCount % connectRetryInterval == 0
+    ):
+        connect(app, retryResolveWait if app.stepCount > 1 else None)
+    
+    if app.inlet is not None:
+        while True:
+            sample = app.inlet.pull_sample(timeout=0.0)[0]
+            if sample is None: break
+            applySample(app, sample)
+    # --- End of Exempt Code ---
+
+    # Call the actual game mechanics
+    takeStep(app)
+
+def takeStep(app):
     #square animation logic    
     for square in app.squares:
         square['cx'] += app.squareSpeed * square['dir']
