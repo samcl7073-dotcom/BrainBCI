@@ -129,7 +129,48 @@ def isIdle(app):
     )
 #end of Ai generated code
 
+class Square:
+    def __init__(self, cx, cy, size, direction, speed):
+        self.cx = cx
+        self.cy = cy
+        self.size = size
+        self.direction = direction
+        self.speed = speed
 
+    def move(self, appWidth):
+        self.cx += self.speed * self.direction
+        if self.cx - self.size/2 > appWidth:
+            self.cx = -self.size/2
+        elif self.cx + self.size/2 < 0:
+            self.cx = appWidth + self.size/2
+
+    def collidesWith(self, ballX, ballY, ballR):
+        squareLeft, squareRight = self.cx - self.size/2, self.cx + self.size/2
+        squareTop, squareBottom = self.cy - self.size/2, self.cy + self.size/2
+        return (ballX + ballR > squareLeft and 
+                ballX - ballR < squareRight and
+                ballY + ballR > squareTop and 
+                ballY - ballR < squareBottom)
+
+    def draw(self):
+        drawRect(self.cx, self.cy, self.size, self.size, 
+                 border='black', fill=None, align='center')
+
+class LevelOneSquare(Square):
+    COUNT = 5
+    def __init__(self, cx, cy, direction):
+        super().__init__(cx, cy, 40, direction, 2)
+
+class LevelTwoSquare(Square):
+    COUNT = 10
+    def __init__(self, cx, cy, direction):
+        super().__init__(cx, cy, 30, direction, 5)
+
+class LevelThreeSquare(Square):
+    COUNT = 15
+    def __init__(self, cx, cy, direction):
+        super().__init__(cx, cy, 20, direction, 8)
+        
 # Midpoint cutoffs (µV²): mean ≤ threshold → Idle; above → not Idle.
 # I had used data from my previous attention study and got a 60% accuracy 
 # rate from using these thresholds to distinguish between idle and non-idle states
@@ -155,8 +196,6 @@ def onAppStart(app):
     app.bandsWithSample = frozenset()
     #end of exempt code
 
-    #level app variables
-    app.LevelOneCleared = False
 
     #app variables for UI
     app.labelSpace=70
@@ -166,35 +205,35 @@ def onAppStart(app):
     app.cy=app.height/2
     app.r=20
 
-    #app variables for squares
-    app.squareSpeed = 3
-    app.numberOfSquares = 5
-    app.squaresize=40
-    
-    #square spacing logic
-    topPadding = 50 
-    bottomPadding = 50 
-    startY = topPadding + (app.squaresize / 2)
-    endY = app.height - app.labelSpace - bottomPadding - (app.squaresize / 2)
-    totalRange = endY - startY
-    gaps = app.numberOfSquares - 1
+    #level app variables
     app.squares = []
-    for i in range(app.numberOfSquares):
-        direction = 1 if (i % 2 == 0) else -1
-        app.squares.append({
-            'index': i,
-            'dir': direction,
-            'cx': (app.width / (app.numberOfSquares + 1)) * (i + 1),
-            'cy': startY + (totalRange / gaps) * i,
-            'size': app.squaresize
-        })
+    app.levelTwo = False
+    app.levelThree = False
+    app.gameWon = False
 
-    #app variables for square animation
-    app.squareSpeed = 2 
-    app.squareDirection = 1
+    app.currentLevelName = "Level 1"
+    
+    # Start the game with Level One
+    generateLevel(app, LevelOneSquare, LevelOneSquare.COUNT)
 
     #app variables used for alternative keyboard control
     app.fPressed = False
+
+def generateLevel(app, SquareClass,count):
+    app.numberOfSquares = count
+    topPadding = 50 
+    bottomPadding = 50 
+    startY = topPadding + 20
+    endY = app.height - app.labelSpace - bottomPadding - 20
+    totalRange = endY - startY
+    gaps = max(1, app.numberOfSquares - 1)
+
+    for i in range(app.numberOfSquares):
+        direction = 1 if (i % 2 == 0) else -1
+        cx = (app.width / (app.numberOfSquares + 1)) * (i + 1)
+        cy = startY + (totalRange / gaps) * i
+        newSquare = SquareClass(cx, cy, direction)
+        app.squares.append(newSquare)
 
 
 def onKeyPress(app,key):
@@ -228,26 +267,26 @@ def onStep(app):
     takeStep(app)
 
 def takeStep(app):
-    #square animation logic    
-    for square in app.squares:
-        square['cx'] += app.squareSpeed * square['dir']
-        if square['cx'] - square['size']/2 > app.width:
-            square['cx'] = -square['size']/2
-        elif square['cx'] + square['size']/2 < 0:
-            square['cx'] = app.width + square['size']/2
-
-    #square and circle collision logic
+    #gameplay movement and collision logic    
     for square in app.squares[:]:
-        squareLeft = square['cx'] - square['size']/2
-        squareRight = square['cx'] + square['size']/2
-        squareTop = square['cy'] - square['size']/2
-        squareBottom = square['cy'] + square['size']/2
-
-        if (app.cx + app.r > squareLeft and app.cx - app.r < squareRight and
-            app.cy + app.r > squareTop and app.cy - app.r < squareBottom):
+        square.move(app.width)
+        if square.collidesWith(app.cx, app.cy, app.r):
             app.squares.remove(square)
+
+    #level transition + logic
     if len(app.squares) == 0:
-        app.LevelOneCleared = True
+        if app.levelTwo == False:
+            app.levelTwo = True
+            app.currentLevelName = "Level 2" 
+            generateLevel(app, LevelTwoSquare, 10)
+            
+        elif app.levelThree == False:
+            app.levelThree = True
+            app.currentLevelName = "Level 3" 
+            generateLevel(app, LevelThreeSquare, 15)
+            
+        else:
+            app.currentLevelName = "Game Complete!"
 
     #the following is ai generated exempt code used to detect EEG stream
     app.stepCount += 1
@@ -283,13 +322,12 @@ def takeStep(app):
 def redrawAll(app):
     drawLabel("press s to switch to EEG stream",app.width-100,app.height-20,size=12,font='arial')
     drawLabel("press f to move ball up",app.width-100,app.height-40,size=12,font='arial')
-    if app.LevelOneCleared == True:
-        drawLabel("Level One Cleared!",app.width/2,app.height/2,size=30,font='arial', fill='pink')
+    drawLabel(app.currentLevelName, app.width/2, app.height/2, 
+              size=60, font='arial', fill='gainsboro', bold=True, opacity=30)
+    
 
     for square in app.squares:
-        left = square['cx'] - square['size']/2
-        top = square['cy'] - square['size']/2
-        drawRect(left, top, square['size'], square['size'], border='black', fill=None)
+        square.draw()
 
     drawCircle(app.cx,app.cy,app.r,fill='cyan')
     
