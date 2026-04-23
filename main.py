@@ -166,8 +166,10 @@ class Square:
                 ballY + ballR > sTop and ballY - ballR < sBottom)
 
     def draw(self):
+        fillColor = None if self.type == 'bomb' else self.color
+        borderLevel = None if self.type == 'bomb' else 'black'
         drawRect(self.cx, self.cy, self.size, self.size, 
-             border='black', fill=self.color, align='center')
+             border=borderLevel, fill=fillColor, align='center')
         if self.type == 'bomb':
             drawImage('bomb.png', self.cx, self.cy, 
                     width=self.size, height=self.size, align='center')
@@ -294,6 +296,9 @@ def onKeyPress(app,key):
         app.searchForStream = not app.searchForStream
     if app.gameOver and key == 'r':
         onAppStart(app)
+    if key == 'n' and app.gameStarted and not app.gameOver:
+        app.timerSeconds = 0
+        takeStep(app)
 
 def onKeyHold(app,keys):
     if 'f' in keys:
@@ -410,6 +415,7 @@ def redrawAll(app):
                 fill='red' if displaySeconds < 10 else 'black')
         
         if app.gameOver:
+            drawRect(app.width - 20, 30, 100,100,fill='white')
             drawLabel("Game Over!", app.width/2, app.height/2 - 40, 
                     size=40, font='arial', fill='red', bold=True)
             drawLabel("Press 'r' to Replay", app.width/2, app.height/2 + 20, 
@@ -422,7 +428,7 @@ def redrawAll(app):
                 entry = app.leaderboard[i]
                 name = entry['name']
                 val = entry['score']
-                displayText = f"{i+1}. {name[:8]}: {val}" # Limit name to 8 chars
+                displayText = f"{i+1}. {name}: {val}" 
                 drawLabel(displayText, app.width - 20, 55 + (i * 20), 
                         size=14, align='right', font='arial')
 
