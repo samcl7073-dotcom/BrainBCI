@@ -7,7 +7,7 @@
 #    A base 'Square' class handles physics and collision, while subclasses 
 #    (LevelOneSquare, LevelTwoSquare, LevelThreeSquare) define specific 
 #    behaviors like size and speed.
-# 3. Dynamic Level Generation: A 'generateLevel' factory function handles 
+# 3. Dynamic Level Generation: The 'generateLevel' function handles 
 #    the vertical spacing and instantiation of squares based on a 'count' parameter.
 # 4. UI & Level Progression: The game moves through 3 levels of increasing difficulty, 
 #    with the background watermark UI updating dynamically.
