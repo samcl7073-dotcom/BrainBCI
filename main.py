@@ -1,3 +1,26 @@
+# KEY FEATURES FOR GRADING:
+# 1. Brain-Computer Interface (BCI) Integration: Real-time EEG data processing 
+#    using Lab Streaming Layer (LSL). The game calculates mean band powers 
+#    to determine 'Focus' or 'Idle' states, allowing the ball to be controlled 
+#    via brain activity.
+# 2. Object-Oriented Obstacles: Squares are managed via a class hierarchy. 
+#    A base 'Square' class handles physics and collision, while subclasses 
+#    (LevelOneSquare, LevelTwoSquare, LevelThreeSquare) define specific 
+#    behaviors like size and speed.
+# 3. Dynamic Level Generation: A 'generateLevel' factory function handles 
+#    the vertical spacing and instantiation of squares based on a 'count' parameter.
+# 4. UI & Level Progression: The game moves through 3 levels of increasing difficulty, 
+#    with the background watermark UI updating dynamically.
+
+# INSTRUCTIONS:
+# - To use EEG: Ensure an LSL stream is active, then press 's' in-game to toggle 
+#   the stream connection. 
+# - To use Keyboard: Hold 'f' to move the ball up.
+# - Objective: Gain the most points in throughout 3 levels without hitting the bombs 
+# before timer runs out on each level.
+# grading shortcuts: press n to skip to the next level, (there are 3 in total), 
+# press r once you finish the game to reset
+
 from cmu_graphics import *
 from pylsl import StreamInlet, resolve_streams
 import random
@@ -360,7 +383,6 @@ def takeStep(app):
         else:
             if not app.gameOver:
                 app.gameOver = True
-                app.currentLevelName = "Game Complete!"
                 userName = app.getTextInput("Enter your name:") or "Anonymous"
                 saveScore(userName, app.score)
                 app.leaderboard = loadLeaderboard()
