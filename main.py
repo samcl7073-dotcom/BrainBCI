@@ -435,9 +435,11 @@ def redrawAll(app):
         timeText = f"Timer: {mins:02d}:{secs:02d}"
         drawLabel(timeText, app.width/2, 30, size=24, font='arial', bold=True, 
                 fill='red' if displaySeconds < 10 else 'black')
-        
+        for square in app.squares:
+            square.draw()
+
         if app.gameOver:
-            drawRect(app.width - 20, 30, 100,100,fill='white')
+            drawRect(app.width - 100, 30, 100,100,fill='white')
             drawLabel("Game Over!", app.width/2, app.height/2 - 40, 
                     size=40, font='arial', fill='red', bold=True)
             drawLabel("Press 'r' to Replay", app.width/2, app.height/2 + 20, 
@@ -454,8 +456,7 @@ def redrawAll(app):
                 drawLabel(displayText, app.width - 20, 55 + (i * 20), 
                         size=14, align='right', font='arial')
 
-        for square in app.squares:
-            square.draw()
+        
 
         drawCircle(app.cx, app.cy, app.r, fill='cyan', border='black')
 
