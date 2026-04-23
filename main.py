@@ -18,8 +18,11 @@
 # - To use Keyboard: Hold 'f' to move the ball up.
 # - Objective: Gain the most points in throughout 3 levels without hitting the bombs 
 # before timer runs out on each level.
-# grading shortcuts: press n to skip to the next level, (there are 3 in total), 
-# press r once you finish the game to reset
+
+# grading shortcuts:
+# 1.  the preset input is keyboard, press s to switch to eeg stream input
+# 2. press n to skip to the next level, (there are 3 in total), 
+# 3. press r once you finish the game to reset
 
 from cmu_graphics import *
 from pylsl import StreamInlet, resolve_streams
