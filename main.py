@@ -152,9 +152,17 @@ def isIdle(app):
     bands = app.bandsWithSample 
     if not bands:
         return True
+    #guard clause. If the EEG headset isn't sending any data (the list is empty),
+    # the function assumes the user is "Idle" by default. This prevents the program 
+    # from crashing if the stream disconnects.
     return all(
+    #a "strict" operator. It only returns True if the test is successful for EVERY single band.
         app.avg[band] <= idleThresholdUv2[band]
+        #compares the current average power of that brainwave
+        #to a pre-defined "Idle Threshold" (measured in microvolts squared, $uV^2$).
         for band in bands
+        #loops through every brainwave range you are tracking 
+        # (e.g., first it looks at Alpha, then Beta).
     )
 #end of Ai generated code
 
@@ -308,10 +316,13 @@ def loadLeaderboard():
 def saveScore(name,score):
     scores = loadLeaderboard()
     scores.append({"name": name, "score": score})
-    scores.sort(key=lambda x: x['score'], reverse=True)
+    scores.sort(key=getScore, reverse=True)
     scores = scores[:100]
     with open('leaderboard.json', 'w') as f:
         json.dump({"topScores": scores}, f)
+
+def getScore(x):
+    return x['score']
 
 
 def onKeyPress(app,key):
@@ -401,12 +412,12 @@ def takeStep(app):
             sample = app.inlet.pull_sample(timeout=0.0)[0]
             if sample is None: break
             applySample(app, sample)
-
+#end of ai code 
     if app.inlet is not None:
         idle = isIdle(app)
     else:
         idle = not app.fPressed
-    
+
     if idle: 
         if app.cy + app.r < (app.height - app.labelSpace):
             app.cy += 5
@@ -417,7 +428,7 @@ def takeStep(app):
             app.cy -= 5
         else:
             app.cy = app.r
-    #end of ai code
+ 
 
 
 def redrawAll(app):
@@ -447,9 +458,7 @@ def redrawAll(app):
             drawLabel("Press 'r' to Replay", app.width/2, app.height/2 + 20, 
                     size=20, font='arial', fill='darkGray')
             drawLabel("TOP SCORES", app.width - 20, 30, size=16, align='right', bold=True)
-            
-
-
+        
             for i in range(len(app.leaderboard)):
                 entry = app.leaderboard[i]
                 name = entry['name']
