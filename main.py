@@ -170,7 +170,7 @@ class Square:
         
         if type == 'bomb':
             self.value = -5 
-            self.color = 'black'
+            self.color = None
         elif type == 'pt1':
             self.value = 1
             self.color = 'lightGreen'
@@ -192,10 +192,9 @@ class Square:
                 ballY + ballR > sTop and ballY - ballR < sBottom)
 
     def draw(self):
-        fillColor = None if self.type == 'bomb' else self.color
-        borderLevel = None if self.type == 'bomb' else 'black'
-        drawRect(self.cx, self.cy, self.size, self.size, 
-             border=borderLevel, fill=fillColor, align='center')
+        # fillColor = None if self.type == 'bomb' else self.color
+        # borderLevel = None if self.type == 'bomb' else 'black'
+        drawRect(self.cx, self.cy, self.size, self.size, fill=self.color, align='center')
         if self.type == 'bomb':
             drawImage('bomb.png', self.cx, self.cy, 
                     width=self.size, height=self.size, align='center')
